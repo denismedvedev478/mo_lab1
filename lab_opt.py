@@ -1,47 +1,34 @@
-"""Лабораторная: одномерная оптимизация.
-Тестовая функция f(x) = x^3 - 3 sin(x) на [0; 1].
-"""
+"1d optimization"
 from math import sin, cos, atan, log1p
 import numpy as np
 import matplotlib.pyplot as plt
 
-global GOLDEN
-GOLDEN = (1+5**.5) / 2
+GOLDEN = (1 + 5 ** 0.5) / 2
+
+# ---------------------------------------------------------------- п.2: функция
+def f(x):   return x ** 3 - 3 * sin(x)
+def df(x):  return 3 * x ** 2 - 3 * cos(x)
+def d2f(x): return 6 * x + 3 * sin(x)
+A, B = 0.0, 1.0
 
 
-def f(x):   return x**3-3*sin(x)
-def df(x):  return 3*x**2-3*cos(x)
-def d2f(x): return 6*x+3*sin(x)
-A, B = 0, 1
-
-
-class Counted:
-    """wrapper  counts how many times a function was called"""
-    def __init__(self, fn):
-        self.fn, self.n = fn, 0
-
-    def __call__(self, x):
-        self.n += 1
-        return self.fn(x)
-
-
-
+# ------------------------------------------- п.4: разностные аналоги производных
 H1, H2 = 1e-6, 1e-4
 
 def fd_first(F, kind, h=H1):
     if kind == 'left':    return lambda x: (F(x) - F(x - h)) / h
-    if kind == 'right':   return lambda x: (F(x+h) - F(x)) / h
-    if kind == 'central': return lambda x: (F(x+h) - F(x-h)) / (2*h)
+    if kind == 'right':   return lambda x: (F(x + h) - F(x)) / h
+    if kind == 'central': return lambda x: (F(x + h) - F(x - h)) / (2 * h)
     raise ValueError(kind)
 
 def fd_second(F, h=H2):
-    return lambda x: (F(x+h) - 2*F(x) + F(x-h)) / h**2
+    return lambda x: (F(x + h) - 2 * F(x) + F(x - h)) / h ** 2
 
 
-
-# без производных
+# ============================================================ МЕТОДЫ (п.1)
+# ---- без производных -------------------------------------------------------
 def brute_force(F, a, b, eps):
-    "Brute forcing through a grid with the step of eps. pick the lowest num"
+    """Перебор: равномерная сетка с шагом <= eps, берём лучшую точку."""
     n = int((b - a) / eps) + 1
     xs = [a + i * (b - a) / n for i in range(n + 1)]
     return min(xs, key=F)
@@ -105,23 +92,6 @@ def golden(F, a, b, eps):
     return (a + b) / 2
 
 
-def doubling_step(F, a, b, h0, eps):
-    """Удвоение шага (исправленный вариант): от левого конца идём вправо,
-    удваивая шаг, пока f убывает. Минимум оказывается на [prev, xn];
-    дальше сужаем отрезок золотым сечением."""
-    x, h = a, h0
-    fx = F(x)
-    prev = x
-    while True:
-        xn = min(x + h, b)
-        fn = F(xn)
-        if fn >= fx or xn == b:
-            break
-        prev, x, fx = x, xn, fn
-        h *= 2
-    return golden(F, prev, xn, eps)
-
-
 def parabolas(F, a, b, eps, max_iter=100):
     """Метод парабол: вершина параболы через 3 точки -> новая точка."""
     x1, x2, x3 = a, (a + b) / 2, b
@@ -144,8 +114,24 @@ def parabolas(F, a, b, eps, max_iter=100):
             else:       x3, f3 = u, fu
     return min(((f1, x1), (f2, x2), (f3, x3)))[1]
 
+def doubling_step(F, a, b, h0, eps):
+    """Удвоение шага (исправленный вариант): от левого конца идём вправо,
+    удваивая шаг, пока f убывает. Минимум оказывается на [prev, xn];
+    дальше сужаем отрезок золотым сечением."""
+    x, h = a, h0
+    fx = F(x)
+    prev = x
+    while True:
+        xn = min(x + h, b)
+        fn = F(xn)
+        if fn >= fx or xn == b:
+            break
+        prev, x, fx = x, xn, fn
+        h *= 2
+    return golden(F, prev, xn, eps)
 
-# ---- с производными --------------------------------------------------------
+
+# с производными
 def midpoint(dF, a, b, eps):
     """Средней точки: бисекция по знаку f'."""
     while (b - a) > eps:
@@ -224,7 +210,7 @@ def marquardt(F, dF, d2F, x0, eps, lam=1.0, max_iter=200):
     return x
 
 
-# ---- глобальный поиск (п.6) -----------------------------------------------
+# 6) глобальный поиск
 def piyavskii(F, a, b, L, eps, max_iter=5000):
     """Метод ломаных (Пиявского): L - константа Липшица, eps - точность по
     значению функции. Возвращает (x, f(x), число вычислений f)."""
@@ -233,7 +219,7 @@ def piyavskii(F, a, b, L, eps, max_iter=5000):
         best = None
         for i, ((x1, f1), (x2, f2)) in enumerate(zip(pts, pts[1:])):
             x = (x1 + x2) / 2 + (f1 - f2) / (2 * L)           # пересечение «зубьев»
-            low = (f1 + f2) / 2 - L * (x2 - x1) / 2           # значение ломаной там
+            low = (f1 + f2) / 2 - L * (x2 - x1) / 2           # значение ломаной
             if best is None or low < best[0]:
                 best = (low, x, i)
         low, x, i = best
@@ -244,7 +230,20 @@ def piyavskii(F, a, b, L, eps, max_iter=5000):
     return xm, fm, len(pts)
 
 
-# ============================================================ ЭКСПЕРИМЕНТЫ
+###############################################
+################ ЭЖксперименты ################
+###############################################
+
+class Counted:
+    """Обёртка: считает, сколько раз вызвали функцию (это и есть N)."""
+    def __init__(self, fn):
+        self.fn, self.n = fn, 0
+
+    def __call__(self, x):
+        self.n += 1
+        return self.fn(x)
+
+
 EPS_LIST = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
 XSTAR = newton(df, d2f, 1.0, 1e-14)        # «точное» решение для сравнения
 
@@ -348,7 +347,7 @@ def part6():
         plt.plot(xs, [F(x) for x in xs])
         plt.plot(xb, F(xb), 'go', label='перебор')
         plt.plot(xp, fp, 'rx', label='ломаных')
-        plt.title(name); plt.grid(); plt.legend()
+        plt.title(f"6) {name}"); plt.grid(); plt.legend()
 
 
 if __name__ == '__main__':
