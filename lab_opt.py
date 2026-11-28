@@ -1,5 +1,5 @@
 "1d optimization"
-from math import sin, cos, atan, log1p
+from math import sin, cos, atan, log1p, ceil
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -29,7 +29,7 @@ def fd_second(F, h=H2):
 # ---- без производных -------------------------------------------------------
 def brute_force(F, a, b, eps):
     """Перебор: равномерная сетка с шагом <= eps, берём лучшую точку."""
-    n = int((b - a) / eps) + 1
+    n = ceil(round((b - a) / eps,9))
     xs = [a + i * (b - a) / n for i in range(n + 1)]
     return min(xs, key=F)
 
@@ -159,7 +159,7 @@ def chord(dF, a, b, eps, max_iter=200):
 
 
 def newton(dF, d2F, x0, eps, max_iter=100):
-    """Ньютон: x <- x - f'(x)/f''(x)."""
+    """Ньютон: x_{i+1} <- x_{i} - f'(x)/f''(x)."""
     x = x0
     for _ in range(max_iter):
         d2 = d2F(x)
@@ -173,7 +173,7 @@ def newton(dF, d2F, x0, eps, max_iter=100):
 
 
 def newton_raphson(F, dF, d2F, x0, eps, max_iter=200):
-    """Ньютон-Рафсон: x <- x - alpha*f'/f'', alpha дробим пополам,
+    """Ньютон-Рафсон: x_{i+1} <- x_{i} - alpha*f'/f'', alpha дробим пополам,
     пока f не уменьшится."""
     x = x0
     for _ in range(max_iter):
@@ -204,7 +204,7 @@ def marquardt(F, dF, d2F, x0, eps, lam=1.0, max_iter=200):
                 lam /= 2
                 x = xn
                 break
-            lam *= 2
+            lam *= 2 # should also do x=xn?
             if lam > 1e12:
                 return x
     return x
@@ -253,7 +253,7 @@ NO_DER = {
     'дихотомия':       lambda F, dF, d2F, eps: dichotomy(F, A, B, eps),
     'золотое сечение': lambda F, dF, d2F, eps: golden(F, A, B, eps),
     'парабол':         lambda F, dF, d2F, eps: parabolas(F, A, B, eps),
-    'удвоение шага':   lambda F, dF, d2F, eps: doubling_step(F, A, B, eps, eps),
+    #'удвоение шага':   lambda F, dF, d2F, eps: doubling_step(F, A, B, eps, eps),
 }
 WITH_DER = {
     'средней точки':   lambda F, dF, d2F, eps: midpoint(dF, A, B, eps),
